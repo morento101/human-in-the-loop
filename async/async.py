@@ -11,49 +11,48 @@ from langgraph.graph import StateGraph, START, END
 
 
 class State(TypedDict):
-    # The operator.add reducer fn makes this append-only
-    aggregate: Annotated[list, operator.add]
+    aggregate: Annotated[list, operator.add]  # The operator.add reducer fn makes this append-only
+    which: str
 
 
-def a(state: State):
-    print(f'Adding "A" to {state["aggregate"]}')
-    return {"aggregate": ["A"]}
+class Node:
+    def __init__(self, value):
+        self.value = value
+
+    def __call__(self, state):
+        print(f'Adding "{self.value}" to {state["aggregate"]}')
+        return {"aggregate": [self.value]}
 
 
-def b(state: State):
-    print(f'Adding "B" to {state["aggregate"]}')
-    return {"aggregate": ["B"]}
-
-def b2(state: State):
-    print(f'Adding "B2" to {state["aggregate"]}')
-    return {"aggregate": ["B2"]}
-
-
-def c(state: State):
-    print(f'Adding "C" to {state["aggregate"]}')
-    return {"aggregate": ["C"]}
-
-
-def d(state: State):
-    print(f'Adding "D" to {state["aggregate"]}')
-    return {"aggregate": ["D"]}
+def route_bc_or_cd(state):
+    if state["which"] == "cd":
+        return ["c", "d"]
+    return ["b", "c"]
 
 
 builder = StateGraph(State)
-builder.add_node(a)
-builder.add_node(b)
-builder.add_node(b2)
-builder.add_node(c)
-builder.add_node(d)
+
+builder.add_node("a", Node("a"))
+builder.add_node("b", Node("b"))
+builder.add_node("c", Node("c"))
+builder.add_node("d", Node("d"))
+builder.add_node("e", Node("e"))
+
 builder.add_edge(START, "a")
-builder.add_edge("a", "b")
-builder.add_edge("a", "c")
-builder.add_edge("b", "b2")
-builder.add_edge("b2", "d")
-builder.add_edge(["b2", "c"], "d")
-builder.add_edge("d", END)
+
+intermediates = ["b", "c", "d"]
+builder.add_conditional_edges(
+    "a",
+    route_bc_or_cd,
+    intermediates,
+)
+
+for intermediate in intermediates:
+    builder.add_edge(intermediate, "e")
+
+builder.add_edge("e", END)
 
 graph = builder.compile()
 graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
 
-graph.invoke({"aggregate": []}, {"configurable": {"thread_id": "foo"}})
+graph.invoke({"aggregate": [], "which": ""}, {"configurable": {"thread_id": "foo"}})
