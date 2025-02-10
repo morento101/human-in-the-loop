@@ -24,6 +24,10 @@ def b(state: State):
     print(f'Adding "B" to {state["aggregate"]}')
     return {"aggregate": ["B"]}
 
+def b2(state: State):
+    print(f'Adding "B2" to {state["aggregate"]}')
+    return {"aggregate": ["B2"]}
+
 
 def c(state: State):
     print(f'Adding "C" to {state["aggregate"]}')
@@ -38,14 +42,18 @@ def d(state: State):
 builder = StateGraph(State)
 builder.add_node(a)
 builder.add_node(b)
+builder.add_node(b2)
 builder.add_node(c)
 builder.add_node(d)
 builder.add_edge(START, "a")
 builder.add_edge("a", "b")
 builder.add_edge("a", "c")
-builder.add_edge("b", "d")
-builder.add_edge("c", "d")
+builder.add_edge("b", "b2")
+builder.add_edge("b2", "d")
+builder.add_edge(["b2", "c"], "d")
 builder.add_edge("d", END)
+
 graph = builder.compile()
+graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
 
 graph.invoke({"aggregate": []}, {"configurable": {"thread_id": "foo"}})
